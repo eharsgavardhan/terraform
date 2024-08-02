@@ -1,0 +1,28 @@
+#step 1 TERRAFORM BLOCK	
+======================================
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.60.0"
+    }
+  }
+}
+
+
+# step 2 PROVIDER BLOCK
+======================================
+provider "aws" {
+  # Configuration options
+region = "us-west-1"
+}
+
+# step 3 RESOURCE BLOCK
+======================================
+resource "aws_ec2" "harsha"{
+ ami_id = " "      #go to ec2 instance ami id copy and paste the 'ami_id'
+instance_type = "t2.micro"
+ tags{
+  name ="harsha-ec2"
+}
+}
