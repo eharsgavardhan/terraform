@@ -1,0 +1,42 @@
+#step 1 create the vpc 
+==============================================================
+resource "aws_vpc" "myvpc"{
+cidr_block ="10.0.0.0/16"
+}
+
+#step 2 create the subnet (public)
+==============================================================
+resource "aws_subnet" "public-subnet"{
+vpc_id = aws_vpc.myvpc.id 
+cidr_block = "10.0.1.0/24"
+}
+
+#step 3 create the subnet (private)
+==============================================================
+resource "aws_subnet" "private-subnet"{
+vpc_id = aws_vpc.myvpc.id 
+cidr_block = "10.0.2.0/24"
+}
+
+#step 4 create the internet gateway
+===========================================================
+resource "aws_internet_gateway" "my-igw"{
+vpc_id = aws_vpc.myvpc.id 
+}
+
+#step 5 create the route table
+==================================================
+resource "aws_route_table" "myroute"{
+  vpc_id = aws_vpc.myvpc.id 
+  route{
+   cidr_block = "0.0.0.0/0"
+   gateway_id = aws_internet_gateway.my-igw.id
+      }
+}
+
+#step 6 subnet association attach with public subnet
+===============================================================
+resource "aws_route_table_association" "public-association"{
+ subnet_id = aws_subnet.public-subnet.id
+ route_table_id =aws_route_table.myroute.id
+}
