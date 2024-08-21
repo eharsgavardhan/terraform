@@ -1,0 +1,70 @@
+
+#TERRAFORM BLOCK---------------------------
+	
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.60.0"
+    }
+  }
+}
+#PROVIDER BLOCK--------------------------
+provider "aws" {
+  # Configuration options
+region = "us-west-1"
+profile = "default"
+}
+
+#VARIABLE BLOCK---------------------------
+
+variable "ec2_instance" {
+  description = "EC2 Instance Type"
+  type = string
+  default = "t2.micro"
+}
+
+#DATASOURCE BLOCK---------------------------
+
+data "aws_ami" "amzlinux" {
+  most_recent = true
+  owners = [ "amazon" ]
+  filter {
+    name = "name"
+    values = [ "amzn2-ami-hvm-*-gp2" ]
+  }
+  filter {
+    name = "root-device-type"
+    values = [ "ebs" ]
+  }
+  filter {
+    name = "virtualization-type"
+    values = [ "hvm" ]
+  }
+  filter {
+    name = "architecture"
+    values = [ "x86_64" ]
+
+}
+
+}
+ #RESOURCE BLOCK---------------------------
+resource "aws_instance "harsha"{
+ ami_id = data.aws_ami.amzlinux.id    
+instance_type = "var.ec2_instance"
+key_name = "name"
+ tags{
+  name ="harsha-ec2"
+}
+}
+
+
+#output block-------------------
+output "ec2_instance_public_ip"{
+   description = "ec2 public ip "
+   value = aws_instance.harsha.public_ip
+}
+
+
+
+
