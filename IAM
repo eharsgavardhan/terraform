@@ -1,0 +1,34 @@
+resource "aws_iam_user" "harsha_user" {
+    name = "today-user"
+  
+}
+resource "aws_iam_access_key" "key" {
+    user = aws_iam_user.harsha_user.name
+  
+}
+output "access_key" {
+    value = "aws_iam_access_key.key.id"
+}
+output "secret_key" {
+    value = aws_iam_access_key.key.secret
+    sensitive = true
+  
+}
+
+resource "aws_iam_user_policy" "iam" {
+    name ="iam_policy"
+    user = aws_iam_user.harsha_user.name
+    policy = <<EOF
+    { 
+     "version" : "2012-10-17",
+     "statement":[
+     {
+        "Effect" : "allow",
+        "action" : "s3 : list All My Buckets",
+        "resource" : "*"
+     }
+     ]
+    
+    }
+    EOF
+}
