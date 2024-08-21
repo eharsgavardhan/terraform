@@ -1,0 +1,243 @@
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+      version = "5.62.0"
+    }
+  }
+}
+
+provider "aws" {
+     region = "us-east-1"
+    
+
+}
+
+#apache install process 
+apache.sh
+
+#! /bin/bash
+ sudo yum update -y
+ sudo yum instyall -y httpd
+ sudo systemctl enable httpd
+ sudo service httpd start
+ echo  "welcome to the project using terraform" | sudo tee /var/www/html/index.html
+ sudo sysyemctl restart httpd
+
+#VPC----------------------
+resource "aws_vpc" "harsha-project"{
+    cidr_block = "10.0.0.0/16"
+ tags = {
+     name = "project-harsha"
+  }
+ 
+#PUBLIC_SUBNETS_1----------------
+
+resource "aws_subnet" "public_subnet_1" {
+   vpc_id = aws_vpc.harsha-project.id
+   cidr_block = "10.0.0.0/24"
+   map_public_ip_on_launch = "true"
+   availability_zone = "us-east-1a"
+
+tags = {
+
+      Name = "project_public_subnet_1"
+  
+    }
+
+}
+
+#PUBLIC_SUBNETS_2-------------------
+
+resource "aws_subnet" "public_subnet_2" {
+    vpc_id = aws_vpc.harsha-project.id
+    cidr_block = "10.0.1.0/24"
+
+    map_public_ip_on_launch = "true"
+
+    availability_zone = "us-east-1b"
+
+tags = {
+
+     Name = "public-subnet2"
+
+    }
+
+}
+# INTERNET GATEWAY-----------------------------------------------
+
+resource "aws_internet_gateway" "internet_gateway" {
+  vpc_id = aws_vpc.harsha-project.id
+}
+
+# ROUTE TABLE -------------------------------------------
+
+resource "aws_route_table" "route_project" {
+  vpc_id = aws_vpc.harsha-project.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.internet_gateway.id
+  }
+  tags = {
+    Name = "route to internet"
+  }
+}
+# ROUTE TABLE ASSOCIATION------------------------------------
+resource "aws_route_table_association" "route_table_harsha" {
+  subnet_id      = aws_subnet.public_subnet_1.id
+  route_table_id = aws_route_table.route_project.id
+}
+#route 2
+resource "aws_route_table_association" "route_table_harsha_1" {
+  subnet_id      = aws_subnet.public_subnet_2.id
+  route_table_id = aws_route_table.route_project.id
+}
+
+#SECURITY_GROUPS--------------------
+
+resource "aws_security_group" "security_today" {
+  name        = "today-security"
+  description = "Dev VPC web"
+   vpc_id = aws_vpc.harsha-project.id
+  ingress {
+    description = "Allow Port 80"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+ ingress {
+    description = "Allow Port 22"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+
+  ingress {
+    description = "Allow Port 443"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all ip and ports outbound"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+}
+
+#EC2_INSTANCE----------------
+
+resource "aws_instance" "harsha_instance" {
+  ami           = "ami-066784287e358dad1"
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.security_today.id] 
+  subnet_id =aws_subnet.public_subnet_1.id
+  key_name = "l-b"
+   user_data = file("apache-install.sh")
+  tags = {
+    Name = "today-project"
+  }
+}
+
+
+
+resource "aws_instance" "harsha_instance_1" {
+  ami           = "ami-066784287e358dad1"
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.security_today.id] 
+  subnet_id =aws_subnet.public_subnet_2.id
+   key_name = "l-b"
+   user_data = file("apache-install.sh")
+
+  tags = {
+    Name = "today-project_1"
+  }
+}
+
+#TARGET GROUP CREATE--------------
+
+resource "aws_lb_target_group" "target-group" {
+   name = "harshatargetgroup"
+   port     = 80
+  protocol = "HTTP"
+   vpc_id=aws_vpc.harsha-project.id
+health_check {
+   path = "/health"
+   port = 80
+   protocol = "HTTP"
+  }
+}
+
+
+#LOAD BALANCER CREATE-----------
+
+resource "aws_lb" "project_alb" {
+name = "loadharsha"
+internal = false
+load_balancer_type = "application"
+security_groups = [aws_security_group.security_today.id]
+subnets = [aws_subnet.public_subnet_1.id, aws_subnet.public_subnet_2.id]
+}
+
+
+#ATTACH TO LB AND TG------------------------------
+
+resource "aws_lb_target_group_attachment" "attachment" {
+  target_group_arn = aws_lb_target_group.target-group.arn
+  target_id        = aws_instance.harsha_instance.id
+  port             = 80
+  depends_on = [
+    aws_lb_target_group.target-group,
+    aws_instance.harsha_instance,
+  ]
+}
+resource "aws_lb_target_group_attachment" "attachment_1" {
+  target_group_arn = aws_lb_target_group.target-group.arn
+  target_id        = aws_instance.harsha_instance_1.id
+  port             = 80
+  depends_on = [
+    aws_lb_target_group.target-group,
+    aws_instance.harsha_nstance_1,
+  ]
+}
+
+resource "aws_lb_listener" "listener_elb" {
+  load_balancer_arn = aws_lb.project_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.target-group.arn
+  }
+}
+
+#dns of load balancer----------------
+
+output "lb_dns_name" {
+description = "DNS of Load balancer"
+value = aws_lb.project_alb.dns_name
+
+}
+
+# ec2_instance public ip-------------------
+
+output "instance_public_ip" {
+description = "Public IP address of the EC2 instance"
+value = aws_instance.harsha_instance.public_ip
+
+}
+
+output "instance_public_1_ip" {
+description = "Public IP address of the EC2 instance"
+value = aws_instance.harsha_instance_1.public_ip
+
+}
